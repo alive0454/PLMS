@@ -29,17 +29,17 @@ type DatabaseConfig struct {
 func LoadConfig() *Config {
 	return &Config{
 		App: AppConfig{
-			Name:    getEnv("APP_NAME", "my-gin-app"),
+			Name:    getEnv("APP_NAME", "PLMS"),
 			Version: getEnv("APP_VERSION", "1.0.0"),
 			Port:    getEnv("APP_PORT", "8080"),
 			Env:     getEnv("APP_ENV", "development"),
 		},
 		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     getEnv("DB_PORT", "3306"),
+			Host:     getEnv("DB_HOST", "47.93.2.51"),
+			Port:     getEnv("DB_PORT", "23306"),
 			User:     getEnv("DB_USER", "root"),
-			Password: getEnv("DB_PASSWORD", "password"),
-			Name:     getEnv("DB_NAME", "myapp"),
+			Password: getEnv("DB_PASSWORD", "HvOI*Vzb2uTC6V45"),
+			Name:     getEnv("DB_NAME", "plms"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 		},
 	}
