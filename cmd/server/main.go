@@ -76,6 +76,9 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 		api.POST("/getRooms", personHandler.GetRooms)
 		api.GET("/getPersonInfo", personHandler.GetPersonInfo)
 		api.GET("/getPersonInfoByRoom", personHandler.GetPersonInfoByRoom)
+
+		//User相关api
+		api.GET("/currentUser", userHandler.GetCurrentUser)
 	}
 
 	// 默认路由

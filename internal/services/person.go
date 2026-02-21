@@ -24,7 +24,7 @@ func (p *PersonService) GetBuildingNumbers() ([]string, error) {
 	var buildingNumbers []string
 	// 使用数据库查询，从 Person 表中获取不重复的 building_number 字段
 	// 并将查询结果填充到 buildingNumbers 切片中
-	err := p.db.Model(&models.Person{}).Where("is_del", 0).Distinct("building_number").Pluck("building_number", &buildingNumbers).Error
+	err := p.db.Model(&models.Person{}).Where("is_del", 0).Not("building_number = ?", "").Distinct("building_number").Pluck("building_number", &buildingNumbers).Error
 	// 返回建筑编号切片和可能的错误
 	return buildingNumbers, err
 }
@@ -52,7 +52,7 @@ func (p *PersonService) GetUnitNumbersByBuildingNumber(buildingNumber string) ([
 //   - *gorm.DB: 构建完成后的 GORM 查询对象
 func (p *PersonService) buildPersonQuery(query *gorm.DB, filter models.PersonFilter) *gorm.DB {
 	// 先处理 is_del 条件
-	query = query.Where("is_del = ?", 0)
+	query = query.Where("is_del = ? and building_number<>'' and unit_number<>0 and room_number<>''", 0)
 
 	// 如果 QueryType == 1，使用 OR 组合所有条件
 	if filter.QueryType == 1 {
@@ -61,9 +61,13 @@ func (p *PersonService) buildPersonQuery(query *gorm.DB, filter models.PersonFil
 
 		// 楼号条件查询
 		if filter.BuildingNumber != "" {
-			orConditions = append(orConditions, clause.Like{
+			//orConditions = append(orConditions, clause.Like{
+			//	Column: clause.Column{Name: "building_number"},
+			//	Value:  "%" + filter.BuildingNumber + "%",
+			//})
+			orConditions = append(orConditions, clause.Eq{
 				Column: clause.Column{Name: "building_number"},
-				Value:  "%" + filter.BuildingNumber + "%",
+				Value:  filter.BuildingNumber,
 			})
 		}
 
@@ -77,9 +81,13 @@ func (p *PersonService) buildPersonQuery(query *gorm.DB, filter models.PersonFil
 
 		// 房号条件查询
 		if filter.RoomNumber != "" {
-			orConditions = append(orConditions, clause.Like{
+			//orConditions = append(orConditions, clause.Like{
+			//	Column: clause.Column{Name: "room_number"},
+			//	Value:  "%" + filter.RoomNumber + "%",
+			//})
+			orConditions = append(orConditions, clause.Eq{
 				Column: clause.Column{Name: "room_number"},
-				Value:  "%" + filter.RoomNumber + "%",
+				Value:  filter.RoomNumber,
 			})
 		}
 
@@ -126,7 +134,7 @@ func (p *PersonService) buildPersonQuery(query *gorm.DB, filter models.PersonFil
 		// 住房情况条件查询
 		if filter.HouseSituation != "" {
 			orConditions = append(orConditions, clause.Like{
-				Column: clause.Column{Name: "house_situation"},
+				Column: clause.Column{Name: "housing_situation"},
 				Value:  "%" + filter.HouseSituation + "%",
 			})
 		}
@@ -275,7 +283,7 @@ func (p *PersonService) buildPersonQuery(query *gorm.DB, filter models.PersonFil
 		// QueryType != 0，使用 AND
 		// 楼号条件查询
 		if filter.BuildingNumber != "" {
-			query = query.Where("building_number LIKE ?", "%"+filter.BuildingNumber+"%")
+			query = query.Where("building_number = ?", filter.BuildingNumber)
 		}
 
 		// 单元号条件查询
@@ -285,7 +293,7 @@ func (p *PersonService) buildPersonQuery(query *gorm.DB, filter models.PersonFil
 
 		// 房号条件查询
 		if filter.RoomNumber != "" {
-			query = query.Where("room_number LIKE ?", "%"+filter.RoomNumber+"%")
+			query = query.Where("room_number = ?", filter.RoomNumber)
 		}
 
 		// 姓名条件查询
@@ -299,8 +307,12 @@ func (p *PersonService) buildPersonQuery(query *gorm.DB, filter models.PersonFil
 		}
 
 		// 年龄范围条件查询
-		if len(filter.Age) > 2 {
-			query = query.Where("age >= ? AND age <= ?", filter.Age[0], filter.Age[1])
+		if len(filter.Age) >= 2 {
+			minAge := filter.Age[0]
+			maxAge := filter.Age[1]
+			if minAge < maxAge && maxAge != 0 {
+				query = query.Where("age >= ? AND age <= ?", filter.Age[0], filter.Age[1])
+			}
 		}
 
 		// 性别条件查询
@@ -315,7 +327,7 @@ func (p *PersonService) buildPersonQuery(query *gorm.DB, filter models.PersonFil
 
 		// 住房情况条件查询
 		if filter.HouseSituation != "" {
-			query = query.Where("house_situation LIKE ?", "%"+filter.HouseSituation+"%")
+			query = query.Where("housing_situation LIKE ?", "%"+filter.HouseSituation+"%")
 		}
 
 		// 房产性质条件查询
@@ -473,7 +485,12 @@ func (p *PersonService) GetRooms(filter models.PersonFilter) ([]models.RoomList,
 	query = p.buildPersonQuery(query, filter)
 	query.Where("building_number<>'' and unit_number>0 and room_number<>''")
 	query.Group("building_number, unit_number, room_number")
-	query.Order("building_number, unit_number, room_number")
+	//query.Order("building_number, unit_number, room_number")
+	query.Order(`
+    CAST(building_number AS UNSIGNED), building_number,
+    CAST(unit_number AS UNSIGNED), unit_number,
+    CAST(room_number AS UNSIGNED), room_number
+`)
 	// 计算总记录数
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err // 如果计数出错，返回错误
@@ -511,7 +528,8 @@ func (p *PersonService) GetRooms(filter models.PersonFilter) ([]models.RoomList,
 			person := p.(models.Person)
 			return person.BuildingNumber == room.BuildingNumber && person.UnitNumber == room.UnitNumber && person.RoomNumber == room.RoomNumber
 		}).Where(func(p interface{}) bool {
-			return strings.Contains(p.(models.Person).HousingSituation, "业")
+			return !strings.Contains(p.(models.Person).HousingSituation, "租") &&
+				!strings.Contains(p.(models.Person).HousingSituation, "空")
 		}).OrderBy(func(p interface{}) interface{} {
 			return p.(models.Person).ID
 		}).ToSlice(&ownerData)
@@ -554,32 +572,71 @@ func (p *PersonService) GetRooms(filter models.PersonFilter) ([]models.RoomList,
 func (p *PersonService) GetPersonStatistics(buildingNumber string) (*models.PersonStatistic, error) {
 	var result models.PersonStatistic
 	// SQL查询语句，用于统计各类人口信息
-	sql := `
-    SELECT 
-        COUNT(DISTINCT room_number) AS total_households,                    -- 总户数
-        SUM(CASE WHEN is_permanent = 1 THEN 1 ELSE 0 END) AS permanent_population,    -- 常住人口
-        SUM(CASE WHEN is_permanent = 2 THEN 1 ELSE 0 END) AS floating_population,      -- 流动人口
-        COUNT(DISTINCT CASE WHEN property_nature LIKE ? THEN room_number END) AS self_occupied_houses,  -- 自住房数量
-        COUNT(DISTINCT CASE WHEN housing_situation LIKE ? THEN room_number END) AS rented_houses,       -- 租住房数量
-        COUNT(DISTINCT CASE WHEN housing_situation LIKE ? THEN room_number END) AS vacant_houses,        -- 空置房数量
-        COUNT(DISTINCT CASE WHEN housing_situation LIKE ? THEN room_number END) AS decoration_houses    -- 装修房数量
-    FROM person
-    WHERE is_del = 0  -- 只查询未删除的记录
-    `
+	sql := `SELECT
+    COUNT(*) AS total_households,
 
-	// SQL查询参数
-	params := []interface{}{
-		"%自住%", // property_nature LIKE ? 的参数
-		"%租%",  // housing_situation LIKE ? 的参数
-		"%空%",  // housing_situation LIKE ? 的参数
-		"%装修%", // housing_situation LIKE ? 的参数
-	}
+    -- 人口统计
+    (SELECT COUNT(*) FROM person WHERE is_del = 0 AND is_permanent = 1) AS permanent_population,
+    (SELECT COUNT(*) FROM person WHERE is_del = 0 AND is_permanent = 2) AS floating_population,
+
+    -- 房屋统计
+    SUM(CASE
+            WHEN housing_situation NOT LIKE '%租%'
+                AND housing_situation NOT LIKE '%空%'
+                AND housing_situation NOT LIKE '%装修%'
+                THEN 1 ELSE 0
+        END) AS self_occupied_houses,
+
+    SUM(CASE WHEN housing_situation LIKE '%租%' THEN 1 ELSE 0 END) AS rented_houses,
+    SUM(CASE WHEN housing_situation LIKE '%空%' THEN 1 ELSE 0 END) AS vacant_houses,
+    SUM(CASE WHEN housing_situation LIKE '%装修%' THEN 1 ELSE 0 END) AS decoration_houses
+
+FROM (
+         -- 三个字段组合才是唯一房间
+         SELECT building_number, unit_number, room_number, 
+                MAX(housing_situation) as housing_situation
+         FROM person
+         WHERE is_del = 0 
+         GROUP BY building_number, unit_number, room_number
+     ) AS rooms
+`
+	params := []interface{}{}
 	// 动态添加楼号条件
 	if buildingNumber != "" && buildingNumber != "0" {
-		sql += " AND building_number = ?" // 添加楼号查询条件
+		sql = `SELECT
+    COUNT(*) AS total_households,
+
+    -- 人口统计
+    (SELECT COUNT(*) FROM person WHERE is_del = 0 AND building_number = ? AND is_permanent = 1) AS permanent_population,
+    (SELECT COUNT(*) FROM person WHERE is_del = 0 AND building_number = ? AND is_permanent = 2) AS floating_population,
+
+    -- 房屋统计
+    SUM(CASE
+            WHEN housing_situation NOT LIKE '%租%'
+                AND housing_situation NOT LIKE '%空%'
+                AND housing_situation NOT LIKE '%装修%'
+                THEN 1 ELSE 0
+        END) AS self_occupied_houses,
+
+    SUM(CASE WHEN housing_situation LIKE '%租%' THEN 1 ELSE 0 END) AS rented_houses,
+    SUM(CASE WHEN housing_situation LIKE '%空%' THEN 1 ELSE 0 END) AS vacant_houses,
+    SUM(CASE WHEN housing_situation LIKE '%装修%' THEN 1 ELSE 0 END) AS decoration_houses
+
+FROM (
+         -- 三个字段组合才是唯一房间
+         SELECT building_number, unit_number, room_number, 
+                MAX(housing_situation) as housing_situation
+         FROM person
+         WHERE is_del = 0 
+           AND building_number = ?  -- 这里也要加条件！
+         GROUP BY building_number, unit_number, room_number
+     ) AS rooms
+`
 		//params = append([]interface{}{buildingNumber}, params...)
-		params = append(params, buildingNumber) // 添加楼号参数
-		fmt.Println(params)
+		params = append(params, buildingNumber)
+		params = append(params, buildingNumber)
+		params = append(params, buildingNumber)
+		//fmt.Println(params)
 	}
 	// 执行SQL查询并将结果扫描到result结构体中
 	err := p.db.Raw(sql, params...).Scan(&result).Error
@@ -589,6 +646,9 @@ func (p *PersonService) GetPersonStatistics(buildingNumber string) (*models.Pers
 	//统计信息
 	totalPersonCount := result.PermanentPopulation + result.FloatingPopulation
 	if result.TotalHouseholds > 0 {
+		//常住人口比例
+		result.PermanentPopulationPercent = fmt.Sprintf("%.2f%%", float64(result.PermanentPopulation)/
+			float64(totalPersonCount)*100)
 		//流动人口比例
 		result.FloatingPopulationPercent = fmt.Sprintf("%.2f%%", float64(result.FloatingPopulation)/
 			float64(totalPersonCount)*100)

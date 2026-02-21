@@ -23,6 +23,32 @@ func NewUserHandler(db *gorm.DB) *UserHandler {
 	}
 }
 
+func (h *UserHandler) GetCurrentUser(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"name":        "test",
+			"avatar":      "",
+			"userid":      "00000001",
+			"email":       "admin@example.com",
+			"signature":   "",
+			"title":       "",
+			"group":       "",
+			"tags":        []gin.H{},
+			"notifyCount": 0,
+			"unreadCount": 0,
+			"country":     "China",
+			"access":      "admin",
+			"geographic": gin.H{
+				"province": gin.H{"label": "浙江省", "key": "330000"},
+				"city":     gin.H{"label": "杭州市", "key": "330100"},
+			},
+			"address": "西湖区工专路 77 号",
+			"phone":   "13800000000",
+		},
+	})
+}
+
 // GetUsers 获取用户列表
 func (h *UserHandler) GetUsers(c *gin.Context) {
 	users, err := h.service.GetUsers()

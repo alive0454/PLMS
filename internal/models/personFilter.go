@@ -12,7 +12,7 @@ type PersonFilter struct {
 	//身份证
 	IDCard string `json:"idCard"`
 	//年龄区间
-	Age []string `json:"age"`
+	Age []int `json:"age"`
 	//性别
 	Gender int `json:"gender"`
 	//是否常驻
