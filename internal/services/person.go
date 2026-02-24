@@ -461,11 +461,15 @@ func (p *PersonService) GetPersonInfoByRoom(buildingNumber, unitNumber, roomNumb
 //   - int64: 总记录数
 //   - error: 错误信息
 func (p *PersonService) GetPersons(filter models.PersonFilter) ([]models.Person, int64, error) {
-	var persons []models.Person                             // 存储查询结果的人员列表
-	var total int64                                         // 存储总记录数
-	query := p.db.Model(&models.Person{})                   // 创建基础查询对象
-	query = p.buildPersonQuery(query, filter)               // 构建查询条件
-	query.Order("building_number,unit_number, room_number") // 设置排序规则，按楼号、单元号、房间号排序
+	var persons []models.Person               // 存储查询结果的人员列表
+	var total int64                           // 存储总记录数
+	query := p.db.Model(&models.Person{})     // 创建基础查询对象
+	query = p.buildPersonQuery(query, filter) // 构建查询条件
+	//query.Order("building_number,unit_number, room_number") // 设置排序规则，按楼号、单元号、房间号排序
+	query.Order(`
+    CAST(building_number AS UNSIGNED), building_number,
+    CAST(unit_number AS UNSIGNED), unit_number,
+    CAST(room_number AS UNSIGNED), room_number`)
 	// 计算总记录数
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err // 如果计数出错，返回错误

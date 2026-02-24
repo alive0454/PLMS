@@ -52,6 +52,11 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+// GetEnv 获取环境变量（公开方法）
+func GetEnv(key string) string {
+	return os.Getenv(key)
+}
+
 func getEnvAsInt(key string, defaultValue int) int {
 	if value := os.Getenv(key); value != "" {
 		if intValue, err := strconv.Atoi(value); err == nil {

@@ -15,11 +15,9 @@ func main() {
 	if err != nil {
 		log.Fatal("数据库连接失败:", err)
 	}
+	//人口台账
 	handler := handlers.NewUpdateExecDataHandler(db)
 	handler.UpdateExecData("./web/alldata.xlsx")
+	//党员台账
 
-	//num, err := strconv.Atoi("北京户籍")
-	//if err == nil {
-	//	fmt.Println(num)
-	//}
 }

@@ -1,14 +1,16 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"log"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 
 	"PLMS/internal/config"
 	"PLMS/internal/database"
 	"PLMS/internal/handlers"
+	"PLMS/internal/middleware"
 )
 
 func main() {
@@ -44,6 +46,7 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	// 中间件
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
+	router.Use(middleware.CORSMiddleware())
 
 	// 静态文件服务
 	router.Static("/static", "./web/static")
@@ -57,28 +60,48 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 		})
 	})
 
-	// API 路由组
+	// API v1 路由组
 	api := router.Group("/api/v1")
 	{
-		// 用户相关路由
-		userHandler := handlers.NewUserHandler(db)
-		api.GET("/users", userHandler.GetUsers)
-		api.GET("/users/:id", userHandler.GetUser)
-		api.POST("/users", userHandler.CreateUser)
-		api.PUT("/users/:id", userHandler.UpdateUser)
-		api.DELETE("/users/:id", userHandler.DeleteUser)
-		//住户相关api
-		personHandler := handlers.NewPersonHandler(db)
-		api.GET("/getBuildingNumbers", personHandler.GetBuildingNumbers)
-		api.GET("/getUnitNumbersByBuildingNumber", personHandler.GetUnitNumbersByBuildingNumber)
-		api.POST("/getPersons", personHandler.GetPersons)
-		api.GET("/getPersonStatistics", personHandler.GetPersonStatistics)
-		api.POST("/getRooms", personHandler.GetRooms)
-		api.GET("/getPersonInfo", personHandler.GetPersonInfo)
-		api.GET("/getPersonInfoByRoom", personHandler.GetPersonInfoByRoom)
+		// ==================== 认证相关路由（无需认证） ====================
+		authHandler := handlers.NewAuthHandler(db)
+		{
+			// 登录接口 - 无需认证
+			api.POST("/auth/login", authHandler.Login)
+		}
 
-		//User相关api
-		api.GET("/currentUser", userHandler.GetCurrentUser)
+		// ==================== 需要认证的路由 ====================
+		// 使用认证中间件
+		authorized := api.Group("")
+		authorized.Use(middleware.AuthMiddleware())
+		// 添加默认密码检查中间件
+		authorized.Use(middleware.DefaultPasswordCheckMiddleware(db))
+		{
+			// 认证相关 - 需要登录
+			authorized.GET("/auth/current-user", authHandler.GetCurrentUser)
+			authorized.POST("/auth/change-password", authHandler.ChangePassword)
+			authorized.POST("/auth/logout", authHandler.Logout)
+			authorized.GET("/auth/check-default-password", authHandler.CheckDefaultPassword)
+
+			// 用户相关路由 - 需要登录（原接口，保留兼容）
+			userHandler := handlers.NewUserHandler(db)
+			authorized.GET("/currentUser", userHandler.GetCurrentUser) // 保留原接口
+			authorized.GET("/users", userHandler.GetUsers)
+			authorized.GET("/users/:id", userHandler.GetUser)
+			authorized.POST("/users", userHandler.CreateUser)
+			authorized.PUT("/users/:id", userHandler.UpdateUser)
+			authorized.DELETE("/users/:id", userHandler.DeleteUser)
+
+			// 住户相关api - 需要登录
+			personHandler := handlers.NewPersonHandler(db)
+			authorized.GET("/getBuildingNumbers", personHandler.GetBuildingNumbers)
+			authorized.GET("/getUnitNumbersByBuildingNumber", personHandler.GetUnitNumbersByBuildingNumber)
+			authorized.POST("/getPersons", personHandler.GetPersons)
+			authorized.GET("/getPersonStatistics", personHandler.GetPersonStatistics)
+			authorized.POST("/getRooms", personHandler.GetRooms)
+			authorized.GET("/getPersonInfo", personHandler.GetPersonInfo)
+			authorized.GET("/getPersonInfoByRoom", personHandler.GetPersonInfoByRoom)
+		}
 	}
 
 	// 默认路由

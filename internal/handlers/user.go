@@ -23,28 +23,52 @@ func NewUserHandler(db *gorm.DB) *UserHandler {
 	}
 }
 
+// GetCurrentUser 获取当前登录用户信息（兼容性接口，与 /auth/current-user 返回相同格式）
 func (h *UserHandler) GetCurrentUser(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "未登录",
+			"data":    nil,
+		})
+		return
+	}
+
+	authService := services.NewAuthService(h.db)
+	user, err := authService.GetUserByID(userID.(int64))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "获取用户信息失败",
+			"data":    nil,
+		})
+		return
+	}
+
+	// 返回与 Ant Design Pro 兼容的格式
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"name":        "test",
-			"avatar":      "",
-			"userid":      "00000001",
-			"email":       "admin@example.com",
-			"signature":   "",
-			"title":       "",
-			"group":       "",
-			"tags":        []gin.H{},
-			"notifyCount": 0,
-			"unreadCount": 0,
-			"country":     "China",
-			"access":      "admin",
+			"name":              user.Name,
+			"avatar":            user.ToUserInfo()["avatar"],
+			"userid":            user.Username,
+			"email":             "",
+			"signature":         "",
+			"title":             "",
+			"group":             "",
+			"tags":              []gin.H{},
+			"notifyCount":       0,
+			"unreadCount":       0,
+			"country":           "China",
+			"access":            user.Role,
+			"isDefaultPassword": user.IsDefaultPassword == 1,
 			"geographic": gin.H{
 				"province": gin.H{"label": "浙江省", "key": "330000"},
 				"city":     gin.H{"label": "杭州市", "key": "330100"},
 			},
-			"address": "西湖区工专路 77 号",
-			"phone":   "13800000000",
+			"address": "",
+			"phone":   "",
 		},
 	})
 }

@@ -43,6 +43,11 @@ type Person struct {
 	HasPet                  int       `gorm:"column:has_pet;type:tinyint" json:"has_pet"`
 	LastContactTime         string    `gorm:"column:last_contact_time;type:varchar(500)" json:"last_contact_time"`
 	OtherInfo               string    `gorm:"column:other_info;type:text" json:"other_info"`
+	IsCp                    int       `gorm:"column:is_cp;type:tinyint;default:0" json:"is_cp"`       // 是否党员：0否，1是
+	CpJoiningDay            *string   `gorm:"column:cp_joining_day;type:date" json:"cp_joining_day"`  // 入党日
+	Nationality             string    `gorm:"column:nationality;type:varchar(50)" json:"nationality"` // 民族
+	Education               string    `gorm:"column:education;type:varchar(50)" json:"education"`     // 学历
+	CpRemark                string    `gorm:"column:cp_remark;type:text" json:"cp_remark"`            // 党员备注
 	IsDel                   int       `gorm:"column:is_del;type:tinyint;default:0" json:"is_del"`
 	CreatedAt               time.Time `gorm:"column:created_at;type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt               time.Time `gorm:"column:updated_at;type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
