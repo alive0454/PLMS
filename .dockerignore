@@ -1,0 +1,48 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# 日志
+*.log
+logs/
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# 依赖（会在容器内下载）
+vendor/
+
+# 构建产物
+dist/
+build/
+
+# 测试
+coverage.out
+*.test
+
+# 文档
+README.md
+DEPLOY.md
+AUTH_API.md
+*.md
+
+# 脚本和配置（部署时使用）
+scripts/
+nginx/ssl/*.pem
+nginx/logs/
+
+# 前端（如果有独立前端项目）
+web/node_modules/
+
+# Docker
+docker-compose.yml
+Dockerfile
+.dockerignore
