@@ -57,25 +57,36 @@ else
 fi
 
 # 创建自动续期脚本
-cat > "$(dirname "$0")/renew-ssl.sh" << EOF
-#!/bin/bash
-# SSL 证书自动续期脚本
+RENEW_SCRIPT="$(dirname "$0")/renew-ssl.sh"
+echo "#!/bin/bash" > "$RENEW_SCRIPT"
+echo "# SSL 证书自动续期脚本" >> "$RENEW_SCRIPT"
+echo "" >> "$RENEW_SCRIPT"
+echo "cd \"$(dirname "$0")/..\"" >> "$RENEW_SCRIPT"
+echo "" >> "$RENEW_SCRIPT"
+echo "# 检测 Docker Compose 命令" >> "$RENEW_SCRIPT"
+echo "if command -v docker-compose &> /dev/null; then" >> "$RENEW_SCRIPT"
+echo "    DOCKER_COMPOSE=\"docker-compose\"" >> "$RENEW_SCRIPT"
+echo "elif docker compose version &> /dev/null 2>&1; then" >> "$RENEW_SCRIPT"
+echo "    DOCKER_COMPOSE=\"docker compose\"" >> "$RENEW_SCRIPT"
+echo "else" >> "$RENEW_SCRIPT"
+echo "    echo \"错误: Docker Compose 未安装\"" >> "$RENEW_SCRIPT"
+echo "    exit 1" >> "$RENEW_SCRIPT"
+echo "fi" >> "$RENEW_SCRIPT"
+echo "" >> "$RENEW_SCRIPT"
+echo "echo \"检查并续期 SSL 证书...\"" >> "$RENEW_SCRIPT"
+echo "certbot renew --quiet" >> "$RENEW_SCRIPT"
+echo "" >> "$RENEW_SCRIPT"
+echo "# 复制新证书" >> "$RENEW_SCRIPT"
+echo "if [ -f \"/etc/letsencrypt/live/$DOMAIN/fullchain.pem\" ]; then" >> "$RENEW_SCRIPT"
+echo "    cp \"/etc/letsencrypt/live/$DOMAIN/fullchain.pem\" \"$CERT_DIR/cert.pem\"" >> "$RENEW_SCRIPT"
+echo "    cp \"/etc/letsencrypt/live/$DOMAIN/privkey.pem\" \"$CERT_DIR/key.pem\"" >> "$RENEW_SCRIPT"
+echo "    " >> "$RENEW_SCRIPT"
+echo "    # 重启 Nginx" >> "$RENEW_SCRIPT"
+echo "    \$DOCKER_COMPOSE restart nginx" >> "$RENEW_SCRIPT"
+echo "    echo \"证书已更新并重启 Nginx\"" >> "$RENEW_SCRIPT"
+echo "fi" >> "$RENEW_SCRIPT"
 
-echo "检查并续期 SSL 证书..."
-certbot renew --quiet
-
-# 复制新证书
-if [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
-    cp "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" "$CERT_DIR/cert.pem"
-    cp "/etc/letsencrypt/live/$DOMAIN/privkey.pem" "$CERT_DIR/key.pem"
-    
-    # 重启 Nginx
-    cd "$(dirname "$0")/.." && docker-compose restart nginx
-    echo "证书已更新并重启 Nginx"
-fi
-EOF
-
-chmod +x "$(dirname "$0")/renew-ssl.sh"
+chmod +x "$RENEW_SCRIPT"
 
 echo ""
 echo "========================================="
@@ -84,9 +95,9 @@ echo "========================================="
 echo ""
 echo "续期:"
 echo "  Let's Encrypt 证书有效期为 90 天"
-echo "  续期脚本: ./scripts/renew-ssl.sh"
+echo "  续期脚本: $RENEW_SCRIPT"
 echo ""
 echo "添加定时任务自动续期:"
 echo "  sudo crontab -e"
-echo "  添加: 0 2 * * 0 /path/to/plms/scripts/renew-ssl.sh"
+echo "  添加: 0 2 * * 0 $RENEW_SCRIPT"
 echo ""

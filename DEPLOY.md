@@ -20,7 +20,7 @@
 - **操作系统**: Ubuntu 20.04+ / CentOS 7+ / Debian 10+
 - **内存**: 建议 2GB 以上
 - **磁盘**: 建议 20GB 以上
-- **网络**: 开放 80 (HTTP) 和 443 (HTTPS) 端口
+- **网络**: 开放 8080 (HTTPS) 端口
 
 ### 2. 安装 Docker
 
@@ -40,12 +40,20 @@ sudo usermod -aG docker $USER
 ### 3. 安装 Docker Compose
 
 ```bash
-# 安装 Docker Compose
+# 方式 1: 使用包管理器安装（推荐，Ubuntu/Debian）
+sudo apt-get update
+sudo apt-get install -y docker-compose
+
+# 方式 2: 手动安装最新版（CentOS/RHEL）
 sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 sudo chmod +x /usr/local/bin/docker-compose
+sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
 
 # 验证安装
 docker-compose --version
+
+# 注意: Docker 20.10+ 可能内置了 "docker compose"（无短横线）
+# 运行 docker compose version 检查
 ```
 
 ### 4. 准备数据库
@@ -213,6 +221,9 @@ sudo crontab -e
 ## 常用命令
 
 ```bash
+# 注意: 如果你的 Docker 版本较新，可能需要使用 "docker compose"（无短横线）
+# 以下命令使用 docker-compose，如不可用请替换为 "docker compose"
+
 # 查看服务状态
 docker-compose ps
 
@@ -250,11 +261,10 @@ docker-compose up -d --build
 ```bash
 # 检查防火墙
 sudo ufw status
-sudo ufw allow 80
-sudo ufw allow 443
+sudo ufw allow 8080
 
 # 检查端口监听
-sudo netstat -tlnp | grep -E '80|443'
+sudo netstat -tlnp | grep 8080
 
 # 查看 Nginx 日志
 docker-compose logs nginx

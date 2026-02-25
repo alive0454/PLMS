@@ -1,11 +1,16 @@
 # 构建阶段
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # 设置工作目录
 WORKDIR /app
 
-# 安装 git 和 ca-certificates
-RUN apk add --no-cache git ca-certificates
+# 安装必要工具（使用阿里云 Alpine 源）
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
+    apk add --no-cache ca-certificates git
+
+# 设置 Go 模块代理为国内源
+ENV GOPROXY=https://goproxy.cn,https://mirrors.aliyun.com/goproxy/,direct
+ENV GO111MODULE=on
 
 # 复制依赖文件
 COPY go.mod go.sum ./
@@ -20,10 +25,11 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o server ./cmd/server/main.go
 
 # 运行阶段
-FROM alpine:latest
+FROM alpine:3.19
 
-# 安装 ca-certificates 支持 HTTPS
-RUN apk --no-cache add ca-certificates tzdata
+# 安装 ca-certificates（使用阿里云源）
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
+    apk --no-cache add ca-certificates tzdata
 
 # 设置时区
 ENV TZ=Asia/Shanghai
