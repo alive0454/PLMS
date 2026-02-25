@@ -62,9 +62,9 @@ docker rm ${APP_NAME}-app 2>/dev/null || true
 docker stop ${APP_NAME}-nginx 2>/dev/null || true
 docker rm ${APP_NAME}-nginx 2>/dev/null || true
 
-# 构建应用镜像
+# 构建应用镜像（禁用 buildkit 使用传统构建）
 echo "构建应用镜像..."
-docker build -t ${APP_NAME}:latest .
+DOCKER_BUILDKIT=0 docker build -t ${APP_NAME}:latest .
 
 # 启动 Go 应用容器
 echo "启动 Go 应用容器..."
