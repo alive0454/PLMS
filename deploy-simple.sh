@@ -14,6 +14,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 APP_NAME="plms"
+IMAGE_NAME="plms"
 
 # 检查 Docker
 if ! command -v docker &> /dev/null; then
@@ -56,23 +57,26 @@ fi
 
 # 停止旧容器
 echo "停止旧容器..."
-docker stop ${APP_NAME}-app ${APP_NAME}-nginx 2>/dev/null || true
-docker rm ${APP_NAME}-app ${APP_NAME}-nginx 2>/dev/null || true
+docker stop ${APP_NAME}-app 2>/dev/null || true
+docker rm ${APP_NAME}-app 2>/dev/null || true
+docker stop ${APP_NAME}-nginx 2>/dev/null || true
+docker rm ${APP_NAME}-nginx 2>/dev/null || true
 
 # 使用传统构建模式
 echo ""
 echo "构建应用镜像（请耐心等待）..."
-DOCKER_BUILDKIT=0 docker build -f Dockerfile.simple -t ${APP_NAME}:latest .
+DOCKER_BUILDKIT=0 docker build -f Dockerfile.simple -t ${IMAGE_NAME}:latest .
 
 # 启动应用（监听 127.0.0.1:8081，只允许本机访问）
 echo ""
 echo "启动应用容器..."
 docker run -d \
     --name ${APP_NAME}-app \
+    --hostname ${APP_NAME}-app \
     --restart unless-stopped \
     -p 127.0.0.1:8081:8080 \
     --env-file .env \
-    ${APP_NAME}:latest
+    ${IMAGE_NAME}:latest
 
 sleep 3
 
@@ -102,4 +106,8 @@ echo ""
 SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
 echo "访问地址: https://${SERVER_IP}:8080"
 echo ""
-echo "查看日志: docker logs -f ${APP_NAME}-app"
+echo ""
+echo "常用命令:"
+echo "  查看日志: docker logs -f ${APP_NAME}-app"
+echo "  停止服务: docker stop ${APP_NAME}-app ${APP_NAME}-nginx"
+echo "  重启服务: docker restart ${APP_NAME}-app ${APP_NAME}-nginx"

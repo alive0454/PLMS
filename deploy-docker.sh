@@ -15,6 +15,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 APP_NAME="plms"
+IMAGE_NAME="plms"
 NETWORK_NAME="plms-network"
 
 # 检查 Docker
@@ -64,12 +65,13 @@ docker rm ${APP_NAME}-nginx 2>/dev/null || true
 
 # 构建应用镜像（禁用 buildkit 使用传统构建）
 echo "构建应用镜像..."
-DOCKER_BUILDKIT=0 docker build -t ${APP_NAME}:latest .
+DOCKER_BUILDKIT=0 DOCKER_BUILDKIT=0 docker build -t ${IMAGE_NAME}:latest .
 
 # 启动 Go 应用容器
 echo "启动 Go 应用容器..."
 docker run -d \
     --name ${APP_NAME}-app \
+    --hostname ${APP_NAME}-app \
     --network ${NETWORK_NAME} \
     --restart unless-stopped \
     -p 8081:8080 \
@@ -88,7 +90,7 @@ docker run -d \
     --health-timeout=10s \
     --health-retries=3 \
     --health-start-period=40s \
-    ${APP_NAME}:latest
+    ${IMAGE_NAME}:latest
 
 # 启动 Nginx 容器
 echo "启动 Nginx 容器..."
