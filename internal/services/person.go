@@ -65,10 +65,11 @@ func (p *PersonService) buildPersonQuery(query *gorm.DB, filter models.PersonFil
 			//	Column: clause.Column{Name: "building_number"},
 			//	Value:  "%" + filter.BuildingNumber + "%",
 			//})
-			orConditions = append(orConditions, clause.Eq{
-				Column: clause.Column{Name: "building_number"},
-				Value:  filter.BuildingNumber,
-			})
+			//orConditions = append(orConditions, clause.Eq{
+			//	Column: clause.Column{Name: "building_number"},
+			//	Value:  filter.BuildingNumber,
+			//})
+			query = query.Where("building_number = ?", filter.BuildingNumber)
 		}
 
 		// 单元号条件查询
@@ -100,7 +101,7 @@ func (p *PersonService) buildPersonQuery(query *gorm.DB, filter models.PersonFil
 		}
 
 		// 身份证号条件查询
-		if filter.IDCard != "" {
+		if filter.IDCard != "" && filter.IDCard != "0" {
 			orConditions = append(orConditions, clause.Like{
 				Column: clause.Column{Name: "id_card"},
 				Value:  "%" + filter.IDCard + "%",
@@ -302,7 +303,7 @@ func (p *PersonService) buildPersonQuery(query *gorm.DB, filter models.PersonFil
 		}
 
 		// 身份证号条件查询
-		if filter.IDCard != "" {
+		if filter.IDCard != "" && filter.IDCard != "0" {
 			query = query.Where("id_card LIKE ?", "%"+filter.IDCard+"%")
 		}
 
