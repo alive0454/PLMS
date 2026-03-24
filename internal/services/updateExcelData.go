@@ -30,10 +30,8 @@ func (s *UpdateExcelDataService) ImportExcelData(filePath string) error {
 		return fmt.Errorf("打开Excel文件失败: %v", err)
 	}
 	defer f.Close()
-
 	// 获取所有工作表
 	sheets := f.GetSheetList()
-
 	for _, sheet := range sheets {
 		// 判断是否需要处理
 		if !slices.Contains(processings, sheet) {
@@ -49,10 +47,10 @@ func (s *UpdateExcelDataService) ImportExcelData(filePath string) error {
 		}
 		fmt.Println("总数：" + strconv.Itoa(len(persons)))
 		//保存人员数据
-		//err = s.savePersons(persons)
-		//if err != nil {
-		//	log.Printf("保存人员信息失败: %v", err)
-		//}
+		err = s.savePersons(persons)
+		if err != nil {
+			log.Printf("保存人员信息失败: %v", err)
+		}
 	}
 
 	return nil
@@ -123,7 +121,7 @@ func readPersonData(f *excelize.File, sheet string) ([]models.Person, error) {
 		// 首先检查是否是合并单元格的一部分
 		if mergedValue, exists := buildingMap[excelRowNum]; exists {
 			// 如果是合并单元格，使用合并的值
-			buildingNumber = mergedValue
+			buildingNumber = strings.TrimSpace(mergedValue)
 		} else if len(rows[i]) > 1 && rows[i][1] != "" {
 			// 如果不是合并单元格，直接读取B列的值
 			buildingNumber = strings.TrimSpace(rows[i][1])
@@ -135,23 +133,23 @@ func readPersonData(f *excelize.File, sheet string) ([]models.Person, error) {
 				bNum := extractNumbers(sheet)
 				person.BuildingNumber = bNum
 				person.UnitNumber = 1
-				person.RoomNumber = buildingNumber
+				person.RoomNumber = strings.TrimSpace(buildingNumber)
 			} else if sheet == "117楼" { //117楼 楼、单元、房号
 				building, unit, room := parseBuildingAddress(buildingNumber)
-				person.BuildingNumber = building
+				person.BuildingNumber = strings.TrimSpace(building)
 				person.UnitNumber, _ = strconv.Atoi(unit)
-				person.RoomNumber = room
+				person.RoomNumber = strings.TrimSpace(room)
 			} else if sheet == "118楼新版" || sheet == "119楼" || sheet == "120楼新版" || sheet == "121楼新版" || sheet == "122楼新版" { //楼号-单元-房号
 				splitAddress := strings.Split(buildingNumber, "-")
-				person.BuildingNumber = splitAddress[0]
-				person.UnitNumber, _ = strconv.Atoi(splitAddress[1])
-				person.RoomNumber = splitAddress[2]
+				person.BuildingNumber = strings.TrimSpace(splitAddress[0])
+				person.UnitNumber, _ = strconv.Atoi(strings.TrimSpace(splitAddress[1]))
+				person.RoomNumber = strings.TrimSpace(splitAddress[2])
 			} else { //楼号-房号
 				parts := strings.SplitN(buildingNumber, "-", 2)
 				if len(parts) == 2 {
-					person.BuildingNumber = parts[0]
+					person.BuildingNumber = strings.TrimSpace(parts[0])
 					person.UnitNumber = 1
-					person.RoomNumber = parts[1]
+					person.RoomNumber = strings.TrimSpace(parts[1])
 				}
 			}
 		}
@@ -351,8 +349,8 @@ func readPersonData(f *excelize.File, sheet string) ([]models.Person, error) {
 		}
 		if person.BuildingNumber == "" {
 			fmt.Println(person)
+			continue
 		}
-
 		persons = append(persons, person)
 	}
 	return persons, nil

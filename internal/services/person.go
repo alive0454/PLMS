@@ -744,3 +744,28 @@ func (p *PersonService) getPersonDemographicStats(buildingNumber string) (*model
 
 	return &result, nil
 }
+
+// ExportPersons 导出人员数据（复用 GetPersons 查询逻辑，不分页）
+// 参数:
+//   - filter: 人员过滤条件
+//
+// 返回值:
+//   - []models.Person: 所有符合条件的人员（不分页）
+//   - error: 错误信息
+func (p *PersonService) ExportPersons(filter models.PersonFilter) ([]models.Person, error) {
+	var persons []models.Person
+	query := p.db.Model(&models.Person{})
+
+	// 复用现有的查询条件构建方法
+	query = p.buildPersonQuery(query, filter)
+
+	// 排序
+	query.Order(`
+    CAST(building_number AS UNSIGNED), building_number,
+    CAST(unit_number AS UNSIGNED), unit_number,
+    CAST(room_number AS UNSIGNED), room_number`)
+
+	// 不分页，查询所有数据
+	result := query.Find(&persons)
+	return persons, result.Error
+}

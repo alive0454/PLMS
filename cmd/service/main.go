@@ -17,7 +17,7 @@ func main() {
 	}
 	//人口台账
 	handler := handlers.NewUpdateExecDataHandler(db)
-	handler.UpdateExecData("./web/alldata.xlsx")
+	handler.UpdateExecData("/Users/wangyao/GolandProjects/PLMS/web/alldata.xlsx")
 	//党员台账
 
 }

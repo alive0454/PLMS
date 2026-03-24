@@ -83,14 +83,20 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 			authorized.POST("/auth/logout", authHandler.Logout)
 			authorized.GET("/auth/check-default-password", authHandler.CheckDefaultPassword)
 
+			// 用户管理接口（需要管理员权限）
+			authorized.GET("/auth/users", authHandler.GetUserList)
+			authorized.POST("/auth/users", authHandler.CreateUser)
+			authorized.PUT("/auth/users/:id", authHandler.UpdateUser)
+			authorized.DELETE("/auth/users/:id", authHandler.DeleteUser)
+
 			// 用户相关路由 - 需要登录（原接口，保留兼容）
-			userHandler := handlers.NewUserHandler(db)
-			authorized.GET("/currentUser", userHandler.GetCurrentUser) // 保留原接口
-			authorized.GET("/users", userHandler.GetUsers)
-			authorized.GET("/users/:id", userHandler.GetUser)
-			authorized.POST("/users", userHandler.CreateUser)
-			authorized.PUT("/users/:id", userHandler.UpdateUser)
-			authorized.DELETE("/users/:id", userHandler.DeleteUser)
+			//userHandler := handlers.NewUserHandler(db)
+			//authorized.GET("/currentUser", userHandler.GetCurrentUser) // 保留原接口
+			//authorized.GET("/users", userHandler.GetUsers)
+			//authorized.GET("/users/:id", userHandler.GetUser)
+			//authorized.POST("/users", userHandler.CreateUser)
+			//authorized.PUT("/users/:id", userHandler.UpdateUser)
+			//authorized.DELETE("/users/:id", userHandler.DeleteUser)
 
 			// 住户相关api - 需要登录
 			personHandler := handlers.NewPersonHandler(db)
@@ -101,6 +107,10 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 			authorized.POST("/getRooms", personHandler.GetRooms)
 			authorized.GET("/getPersonInfo", personHandler.GetPersonInfo)
 			authorized.GET("/getPersonInfoByRoom", personHandler.GetPersonInfoByRoom)
+
+			// 导出接口 - 需要登录
+			authorized.GET("/exportFields", personHandler.GetExportFields)
+			authorized.POST("/exportPersons", personHandler.ExportPersons)
 		}
 	}
 

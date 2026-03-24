@@ -31,12 +31,22 @@ func (u *SysUser) ToUserInfo() map[string]interface{} {
 	} else {
 		avatar = "https://gw.alipayobjects.com/zos/rmsportal/BiazfanxmamNRoxxVxka.png"
 	}
+
+	// 处理最后登录时间（可能为 nil）
+	lastLoginTime := ""
+	if u.LastLoginTime != nil {
+		lastLoginTime = u.LastLoginTime.Format("2006-01-02 15:04:05")
+	}
+
 	return map[string]interface{}{
 		"id":                u.ID,
 		"username":          u.Username,
 		"name":              u.Name,
 		"role":              u.Role,
+		"status":            u.Status,
 		"isDefaultPassword": u.IsDefaultPassword == 1,
 		"avatar":            avatar,
+		"createdAt":         u.CreatedAt.Format("2006-01-02 15:04:05"),
+		"lastLoginTime":     lastLoginTime,
 	}
 }

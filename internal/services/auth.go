@@ -183,3 +183,112 @@ func HashPassword(password string) (string, error) {
 	}
 	return string(hashedPassword), nil
 }
+
+// CreateUserRequest 创建用户请求
+type CreateUserRequest struct {
+	Username string `json:"username" binding:"required,min=3,max=50"`
+	Password string `json:"password" binding:"required,min=6"`
+	Name     string `json:"name" binding:"required"`
+	Role     string `json:"role" binding:"required,oneof=admin user"`
+}
+
+// CreateUser 创建新用户
+func (s *AuthService) CreateUser(req *CreateUserRequest) (*models.SysUser, error) {
+	// 检查用户名是否已存在
+	var existingUser models.SysUser
+	if err := s.db.Where("username = ?", req.Username).First(&existingUser).Error; err == nil {
+		return nil, errors.New("用户名已存在")
+	}
+
+	// 加密密码
+	hashedPassword, err := HashPassword(req.Password)
+	if err != nil {
+		return nil, errors.New("密码加密失败")
+	}
+
+	// 创建用户
+	user := &models.SysUser{
+		Username:          req.Username,
+		Password:          hashedPassword,
+		Name:              req.Name,
+		Role:              req.Role,
+		IsDefaultPassword: 0, // 新用户不是默认密码
+		Status:            1, // 默认启用
+	}
+
+	if err := s.db.Create(user).Error; err != nil {
+		return nil, errors.New("创建用户失败: " + err.Error())
+	}
+
+	return user, nil
+}
+
+// DeleteUser 删除用户（软删除）
+func (s *AuthService) DeleteUser(userID int64) error {
+	result := s.db.Model(&models.SysUser{}).Where("id = ?", userID).Update("status", 0)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("用户不存在")
+	}
+	return nil
+}
+
+// UpdateUser 更新用户信息
+type UpdateUserRequest struct {
+	Name     string `json:"name" binding:"required"`
+	Role     string `json:"role" binding:"required,oneof=admin user"`
+	Status   int8   `json:"status" binding:"omitempty,oneof=0 1"`
+	Password string `json:"password,omitempty" binding:"omitempty,min=6"`
+}
+
+func (s *AuthService) UpdateUser(userID int64, req *UpdateUserRequest) error {
+	updates := map[string]interface{}{
+		"name": req.Name,
+		"role": req.Role,
+	}
+	// 如果传了 status，也更新状态
+	if req.Status == 0 || req.Status == 1 {
+		updates["status"] = req.Status
+	}
+	// 如果传了密码，加密后更新
+	if req.Password != "" {
+		hashedPassword, err := HashPassword(req.Password)
+		if err != nil {
+			return errors.New("密码加密失败")
+		}
+		updates["password"] = hashedPassword
+		updates["is_default_password"] = 0 // 修改密码后不再是默认密码
+	}
+
+	result := s.db.Model(&models.SysUser{}).Where("id = ?", userID).Updates(updates)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("用户不存在")
+	}
+	return nil
+}
+
+// GetUserList 获取用户列表（分页，包含所有状态用户，正常的排前面）
+func (s *AuthService) GetUserList(page, pageSize int) ([]models.SysUser, int64, error) {
+	var users []models.SysUser
+	var total int64
+
+	// 计算总数（包含所有状态）
+	if err := s.db.Model(&models.SysUser{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 分页查询，按 status DESC 排序（1正常在前，0禁用在后）
+	offset := (page - 1) * pageSize
+	err := s.db.
+		Order("status DESC, id DESC").
+		Offset(offset).
+		Limit(pageSize).
+		Find(&users).Error
+
+	return users, total, err
+}

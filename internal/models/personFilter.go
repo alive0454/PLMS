@@ -61,4 +61,6 @@ type PersonFilter struct {
 	QueryType int `json:"queryType"`
 	Page      int `json:"page" form:"page" binding:"omitempty,min=1"`
 	PageSize  int `json:"pageSize" form:"pageSize" binding:"omitempty,min=1,max=100000"`
+	//导出字段列表（用于导出Excel）
+	ShowFields []string `json:"showFields"`
 }
