@@ -111,6 +111,10 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 			// 导出接口 - 需要登录
 			authorized.GET("/exportFields", personHandler.GetExportFields)
 			authorized.POST("/exportPersons", personHandler.ExportPersons)
+
+			// Excel导入接口 - 需要登录（管理员权限）
+			updateHandler := handlers.NewUpdateExecDataHandler(db)
+			authorized.POST("/import/excel", updateHandler.ImportExcel)
 		}
 	}
 

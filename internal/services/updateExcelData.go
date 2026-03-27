@@ -6,12 +6,18 @@ import (
 	"fmt"
 	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
-	"log"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 )
+
+// ImportResult 导入结果
+type ImportResult struct {
+	TotalSheets  int      `json:"totalSheets"`  // 处理的工作表总数
+	TotalPersons int      `json:"totalPersons"` // 导入的人员总数
+	Details      []string `json:"details"`      // 详细处理信息
+}
 
 type UpdateExcelDataService struct {
 	db *gorm.DB
@@ -21,39 +27,57 @@ func NewUpdateExcelDataService(db *gorm.DB) *UpdateExcelDataService {
 	return &UpdateExcelDataService{db: db}
 }
 
-func (s *UpdateExcelDataService) ImportExcelData(filePath string) error {
+func (s *UpdateExcelDataService) ImportExcelData(filePath string) (*ImportResult, error) {
+	result := &ImportResult{
+		TotalSheets:  0,
+		TotalPersons: 0,
+		Details:      []string{},
+	}
+
 	processings := []string{"101楼", "103楼", "104楼新版", "105楼副本", "106楼副本", "108楼副本", "109楼-更新中", "110楼", "111楼新",
 		"113楼", "114楼更新", "117楼", "118楼新版", "119楼", "120楼新版", "121楼新版", "122楼新版"}
-	//processings := []string{"101楼"}
+
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
-		return fmt.Errorf("打开Excel文件失败: %v", err)
+		return nil, fmt.Errorf("打开Excel文件失败: %v", err)
 	}
 	defer f.Close()
+
 	// 获取所有工作表
 	sheets := f.GetSheetList()
+	result.Details = append(result.Details, fmt.Sprintf("发现 %d 个工作表", len(sheets)))
+
 	for _, sheet := range sheets {
 		// 判断是否需要处理
 		if !slices.Contains(processings, sheet) {
+			result.Details = append(result.Details, fmt.Sprintf("跳过工作表: %s (不在处理列表中)", sheet))
 			continue
 		}
 
-		fmt.Printf("正在处理工作表: %s\n", sheet)
+		result.Details = append(result.Details, fmt.Sprintf("正在处理工作表: %s", sheet))
 		// 读取人员数据（传入文件对象和工作表名称）
 		persons, err := readPersonData(f, sheet)
 		if err != nil {
-			log.Printf("读取人员数据失败: %v", err)
+			result.Details = append(result.Details, fmt.Sprintf("读取人员数据失败 [%s]: %v", sheet, err))
 			continue
 		}
-		fmt.Println("总数：" + strconv.Itoa(len(persons)))
-		//保存人员数据
-		err = s.savePersons(persons)
-		if err != nil {
-			log.Printf("保存人员信息失败: %v", err)
+
+		result.Details = append(result.Details, fmt.Sprintf("工作表 [%s] 读取 %d 条人员数据", sheet, len(persons)))
+		result.TotalPersons += len(persons)
+		result.TotalSheets++
+
+		// 保存人员数据
+		if len(persons) > 0 {
+			if err := s.savePersons(persons); err != nil {
+				result.Details = append(result.Details, fmt.Sprintf("保存人员信息失败 [%s]: %v", sheet, err))
+			} else {
+				result.Details = append(result.Details, fmt.Sprintf("工作表 [%s] 成功保存 %d 条数据", sheet, len(persons)))
+			}
 		}
 	}
 
-	return nil
+	result.Details = append(result.Details, fmt.Sprintf("导入完成，共处理 %d 个工作表，%d 条人员数据", result.TotalSheets, result.TotalPersons))
+	return result, nil
 }
 
 // getBuildingNumberFromMergedCells 专门处理B列的合并单元格
